@@ -33,6 +33,10 @@ if (!is_dir($assetDirectory)) {
     mkdir($assetDirectory, 0777, true);
 }
 
+if (!is_dir($rccContentDirectory)) {
+    mkdir($rccContentDirectory, 0777, true);
+}
+
 
 echo "Fetching avatar..." . PHP_EOL;
 
@@ -43,6 +47,7 @@ $curl = curl_init($avatarUrl);
 
 curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+curl_setopt($curl, CURLOPT_ENCODING, "");
 
 $response = curl_exec($curl);
 
@@ -84,6 +89,206 @@ foreach (glob($assetDirectory . "/*") as $file) {
 $appearanceFiles = [];
 $rccAssetFiles = [];
 
+$resolvedAssets = [];
+
+
+function downloadAsset($assetId, $versionId = null) {
+
+    global $resolvedAssets;
+
+    $cacheKey = $assetId . ":" . ($versionId ?? "");
+
+    if (isset($resolvedAssets[$cacheKey])) {
+        return $resolvedAssets[$cacheKey];
+    }
+
+
+    $urls = [];
+
+    if ($versionId) {
+        $urls[] =
+            "https://assetdelivery.roblox.com/v1/assetId/"
+            . $assetId
+            . "/version/"
+            . $versionId;
+    }
+
+    $urls[] =
+        "https://assetdelivery.roblox.com/v1/assetId/"
+        . $assetId;
+
+
+    foreach ($urls as $assetUrl) {
+
+        $curl = curl_init($assetUrl);
+
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($curl, CURLOPT_ENCODING, "");
+
+        $data = curl_exec($curl);
+
+        if ($data === false) {
+            curl_close($curl);
+            continue;
+        }
+
+        $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+
+        curl_close($curl);
+
+
+        if ($status !== 200) {
+            continue;
+        }
+
+
+        $json = json_decode($data, true);
+
+        if (
+            is_array($json) &&
+            isset($json["location"])
+        ) {
+
+            $location = $json["location"];
+
+
+            $curl = curl_init($location);
+
+            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($curl, CURLOPT_ENCODING, "");
+
+            $data = curl_exec($curl);
+
+            if ($data === false) {
+                curl_close($curl);
+                continue;
+            }
+
+            $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+
+            curl_close($curl);
+
+
+            if ($status !== 200) {
+                continue;
+            }
+        }
+
+
+        if (
+            str_starts_with(trim($data), "{") &&
+            str_contains($data, '"errors"')
+        ) {
+            continue;
+        }
+
+
+        $resolvedAssets[$cacheKey] = $data;
+
+        return $data;
+    }
+
+
+    return false;
+}
+
+
+function resolveAssetDependencies(&$data, $sourceName) {
+
+    global $assetDirectory;
+    global $rccContentDirectory;
+    global $rccAssetFiles;
+
+
+    if (
+        !str_contains($data, "roblox.com/asset") &&
+        !str_contains($data, "rbxassetid://")
+    ) {
+        return $data;
+    }
+
+
+    preg_match_all(
+        '/(?:https?:\/\/[^<"\']*roblox\.com\/asset\/\?id=|rbxassetid:\/\/)(\d+)/i',
+        $data,
+        $matches
+    );
+
+
+    if (empty($matches[1])) {
+        return $data;
+    }
+
+
+    $assetIds = array_unique($matches[1]);
+
+
+    foreach ($assetIds as $assetId) {
+
+        echo "  Resolving dependency: " . $assetId . PHP_EOL;
+
+
+        $dependencyData = downloadAsset($assetId);
+
+
+        if ($dependencyData === false) {
+            echo "  Failed to download dependency: " . $assetId . PHP_EOL;
+            continue;
+        }
+
+
+        $dependencyFileName = $assetId;
+
+        $dependencyPath =
+            $assetDirectory . "/" . $dependencyFileName;
+
+
+        $rccDependencyPath =
+            $rccContentDirectory . "/" . $dependencyFileName;
+
+
+        $dependencyData =
+            resolveAssetDependencies(
+                $dependencyData,
+                $dependencyFileName
+            );
+
+
+        file_put_contents(
+            $dependencyPath,
+            $dependencyData
+        );
+
+
+        if (!copy($dependencyPath, $rccDependencyPath)) {
+            echo "  Failed to copy dependency into RCC content." . PHP_EOL;
+            continue;
+        }
+
+
+        $rccAssetFiles[] = $rccDependencyPath;
+
+
+        $data = preg_replace(
+            '/https?:\/\/[^<"\']*roblox\.com\/asset\/\?id=' . preg_quote($assetId, '/') . '/i',
+            'rbxasset://' . $dependencyFileName,
+            $data
+        );
+
+
+        $data = str_replace(
+            'rbxassetid://' . $assetId,
+            'rbxasset://' . $dependencyFileName,
+            $data
+        );
+    }
+
+
+    return $data;
+}
+
 
 echo PHP_EOL;
 echo "Downloading supported assets..." . PHP_EOL;
@@ -104,7 +309,12 @@ foreach ($avatar["assets"] ?? [] as $asset) {
     if (
         $assetType !== "Shirt" &&
         $assetType !== "Pants" &&
-        $assetType !== "Hat"
+        $assetType !== "Hat" &&
+        $assetType !== "LeftArm" &&
+        $assetType !== "LeftLeg" &&
+        $assetType !== "RightArm" &&
+        $assetType !== "RightLeg" &&
+        $assetType !== "Torso"
     ) {
         echo "Skipping: " . $name . " (" . $assetType . ")" . PHP_EOL;
         continue;
@@ -114,99 +324,44 @@ foreach ($avatar["assets"] ?? [] as $asset) {
     echo "Downloading: " . $name . " (" . $assetType . ")" . PHP_EOL;
 
 
-    $assetUrl =
-        "https://assetdelivery.roblox.com/v1/assetId/"
-        . $assetId
-        . "/version/"
-        . $versionId;
-
-
-    $curl = curl_init($assetUrl);
-
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-
-    $assetData = curl_exec($curl);
-
-    if ($assetData === false) {
-        echo "  Version download failed: " . curl_error($curl) . PHP_EOL;
-        curl_close($curl);
-        $assetData = false;
-    } else {
-        $assetStatus = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-        curl_close($curl);
-
-        if (
-            $assetStatus !== 200 ||
-            (
-                str_starts_with(trim($assetData), "{") &&
-                str_contains($assetData, '"errors"')
-            )
-        ) {
-            echo "  Version download failed (HTTP " . $assetStatus . "), trying asset ID..." . PHP_EOL;
-            $assetData = false;
-        }
-    }
+    $assetData = downloadAsset($assetId, $versionId);
 
 
     if ($assetData === false) {
-
-        $assetUrl =
-            "https://assetdelivery.roblox.com/v1/assetId/"
-            . $assetId;
-
-
-        $curl = curl_init($assetUrl);
-
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-
-        $assetData = curl_exec($curl);
-
-        if ($assetData === false) {
-            echo "  Asset ID download failed: " . curl_error($curl) . PHP_EOL;
-            curl_close($curl);
-            continue;
-        }
-
-        $assetStatus = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-
-        curl_close($curl);
-
-
-        if ($assetStatus !== 200) {
-            echo "  Asset ID HTTP error: " . $assetStatus . PHP_EOL;
-            continue;
-        }
-
-
-        if (
-            str_starts_with(trim($assetData), "{") &&
-            str_contains($assetData, '"errors"')
-        ) {
-            echo "  Asset ID returned an invalid response." . PHP_EOL;
-            continue;
-        }
+        echo "  Failed to download asset." . PHP_EOL;
+        continue;
     }
 
 
-    $assetFileName = $assetId . "_" . $versionId . ".rbxm";
+    $assetData =
+        resolveAssetDependencies(
+            $assetData,
+            $assetId . "_" . $versionId
+        );
 
-    $assetPath = $assetDirectory . "/" . $assetFileName;
 
-    file_put_contents($assetPath, $assetData);
+    $xmlFileName = $assetId . "_" . $versionId . ".rbxmx";
+
+    $xmlPath = $assetDirectory . "/" . $xmlFileName;
+
+    file_put_contents(
+        $xmlPath,
+        $assetData
+    );
 
 
-    $rccAssetPath = $rccContentDirectory . "/" . $assetFileName;
+    $rccAssetPath =
+        $rccContentDirectory . "/" . $xmlFileName;
 
-    if (!copy($assetPath, $rccAssetPath)) {
+
+    if (!copy($xmlPath, $rccAssetPath)) {
         echo "  Failed to copy asset into RCC content." . PHP_EOL;
         continue;
     }
 
 
     $rccAssetFiles[] = $rccAssetPath;
-    $appearanceFiles[] = "rbxasset://" . $assetFileName;
+    $appearanceFiles[] = "rbxasset://" . $xmlFileName;
 
 
     echo "  Saved." . PHP_EOL;
@@ -237,27 +392,37 @@ $rcc = new RCCServiceSoap("127.0.0.1", 64989);
 $job = new Job("AvatarRender_" . $userId);
 
 
-$characterAppearanceLua = json_encode($characterAppearance);
-
+$testAsset = "301811432_10151325111.rbxmx";
 
 $scriptText = <<<LUA
 game:GetService("ContentProvider"):SetBaseUrl("http://www.roblox.com")
 
 game:GetService("ScriptContext").ScriptsDisabled = true
 
-
 local Players = game:GetService("Players")
 
-local player = Players:CreateLocalPlayer($userId)
+local player = Players:CreateLocalPlayer(1)
 
-player.CharacterAppearance = $characterAppearanceLua
-
-print("CharacterAppearance:", player.CharacterAppearance)
+print("Character before LoadCharacter:", player.Character)
 
 player:LoadCharacter()
 
 print("Character loaded:", player.Character)
 
+local objects = game:GetObjects(
+	"rbxasset://{$testAsset}"
+)
+
+print("Objects loaded:", #objects)
+
+for _, object in pairs(objects) do
+	print("Loaded object:", object.ClassName, object.Name)
+	print("Parent before:", object.Parent)
+
+	object.Parent = player.Character
+
+	print("Parent after:", object.Parent)
+end
 
 local image = game:GetService("ThumbnailGenerator"):Click(
 	"PNG",
