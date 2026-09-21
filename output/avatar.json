@@ -1,0 +1,177 @@
+{
+    "scales": {
+        "height": 1,
+        "width": 1,
+        "head": 1,
+        "depth": 1,
+        "proportion": 0,
+        "bodyType": 0
+    },
+    "playerAvatarType": "R15",
+    "bodyColor3s": {
+        "headColor3": "A3A2A5",
+        "torsoColor3": "0D69AC",
+        "rightArmColor3": "A3A2A5",
+        "leftArmColor3": "A3A2A5",
+        "rightLegColor3": "6E99CA",
+        "leftLegColor3": "6E99CA"
+    },
+    "assets": [
+        {
+            "id": 301811432,
+            "name": "Oakley Pants",
+            "assetType": {
+                "id": 12,
+                "name": "Pants"
+            },
+            "currentVersionId": 10151325111
+        },
+        {
+            "id": 607702162,
+            "name": "Roblox Baseball Cap",
+            "assetType": {
+                "id": 8,
+                "name": "Hat"
+            },
+            "currentVersionId": 1171146069
+        },
+        {
+            "id": 607785314,
+            "name": "ROBLOX Jacket",
+            "assetType": {
+                "id": 11,
+                "name": "Shirt"
+            },
+            "currentVersionId": 955993454
+        },
+        {
+            "id": 2510230574,
+            "name": "Rthro Climb",
+            "assetType": {
+                "id": 48,
+                "name": "ClimbAnimation"
+            },
+            "currentVersionId": 13806699923
+        },
+        {
+            "id": 2510233257,
+            "name": "Rthro Fall",
+            "assetType": {
+                "id": 50,
+                "name": "FallAnimation"
+            },
+            "currentVersionId": 13806699941
+        },
+        {
+            "id": 2510235063,
+            "name": "Rthro Idle",
+            "assetType": {
+                "id": 51,
+                "name": "IdleAnimation"
+            },
+            "currentVersionId": 17686818829
+        },
+        {
+            "id": 2510236649,
+            "name": "Rthro Jump",
+            "assetType": {
+                "id": 52,
+                "name": "JumpAnimation"
+            },
+            "currentVersionId": 13806699943
+        },
+        {
+            "id": 2510238627,
+            "name": "Rthro Run",
+            "assetType": {
+                "id": 53,
+                "name": "RunAnimation"
+            },
+            "currentVersionId": 13806699940
+        },
+        {
+            "id": 2510240941,
+            "name": "Rthro Swim",
+            "assetType": {
+                "id": 54,
+                "name": "SwimAnimation"
+            },
+            "currentVersionId": 13806699946
+        },
+        {
+            "id": 2510242378,
+            "name": "Rthro Walk",
+            "assetType": {
+                "id": 55,
+                "name": "WalkAnimation"
+            },
+            "currentVersionId": 13806699951
+        },
+        {
+            "id": 10638267973,
+            "name": "Stevie Standard - Head",
+            "assetType": {
+                "id": 79,
+                "name": "DynamicHead"
+            },
+            "currentVersionId": 39165652861187
+        },
+        {
+            "id": 10647852134,
+            "name": "DefaultFallBackMood",
+            "assetType": {
+                "id": 78,
+                "name": "MoodAnimation"
+            },
+            "currentVersionId": 70169831179700
+        },
+        {
+            "id": 12995014400,
+            "name": "Man - Left Arm",
+            "assetType": {
+                "id": 29,
+                "name": "LeftArm"
+            },
+            "currentVersionId": 16754708924
+        },
+        {
+            "id": 12995015868,
+            "name": "Man - Left Leg",
+            "assetType": {
+                "id": 30,
+                "name": "LeftLeg"
+            },
+            "currentVersionId": 16754710931
+        },
+        {
+            "id": 12995017412,
+            "name": "Man - Right Arm",
+            "assetType": {
+                "id": 28,
+                "name": "RightArm"
+            },
+            "currentVersionId": 16754713361
+        },
+        {
+            "id": 12995018829,
+            "name": "Man - Right Leg",
+            "assetType": {
+                "id": 31,
+                "name": "RightLeg"
+            },
+            "currentVersionId": 16754715470
+        },
+        {
+            "id": 12995020128,
+            "name": "Man - Torso",
+            "assetType": {
+                "id": 27,
+                "name": "Torso"
+            },
+            "currentVersionId": 16754717279
+        }
+    ],
+    "defaultShirtApplied": false,
+    "defaultPantsApplied": false,
+    "emotes": []
+}
