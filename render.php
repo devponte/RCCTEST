@@ -1,5 +1,7 @@
 <?php
 
+// fix so rcc doesnt return empty by fixing the lua.
+
 require_once __DIR__ . "/PHP-RCCServiceSoap/Assemblies/Roblox/Grid/Rcc/Job.php";
 require_once __DIR__ . "/PHP-RCCServiceSoap/Assemblies/Roblox/Grid/Rcc/LuaType.php";
 require_once __DIR__ . "/PHP-RCCServiceSoap/Assemblies/Roblox/Grid/Rcc/LuaValue.php";
@@ -199,7 +201,7 @@ function resolveAssetDependencies(&$data, $sourceName) {
 
 
     preg_match_all(
-        '/(?:https?:\/\/[^<"\']*roblox\.com\/asset\/\?id=|rbxassetid:\/\/)(\d+)/i',
+        '/(?:https?:\/\/[^<"\']*roblox\.com\/asset\/?\?id=|rbxassetid:\/\/)(\d+)/i',
         $data,
         $matches
     );
@@ -255,7 +257,7 @@ function resolveAssetDependencies(&$data, $sourceName) {
 
 
         $data = preg_replace(
-            '/https?:\/\/[^<"\']*roblox\.com\/asset\/\?id=' . preg_quote($assetId, '/') . '/i',
+            '/https?:\/\/[^<"\']*roblox\.com\/asset\/?\?id=' . preg_quote($assetId, '/') . '/i',
             'rbxasset://' . $dependencyFileName,
             $data
         );
@@ -287,6 +289,7 @@ foreach ($avatar["assets"] ?? [] as $asset) {
     }
 
 
+	// 'Whitelisted' assets.
     if (
         $assetType !== "Shirt" &&
         $assetType !== "Pants" &&
@@ -341,17 +344,12 @@ foreach ($avatar["assets"] ?? [] as $asset) {
     $rccAssetFiles[] = $rccAssetPath;
 
 
-    // if (
-    //     $assetType === "Pants" ||
-    //     $assetType === "Shirt" ||
-    //     $assetType === "Hat"
-    // ) {
-    //     $appearanceFiles[] = "rbxasset://" . $xmlFileName;
-    // }
-
-    if ($assetType === "Pants") {
-        $appearanceFiles[] =
-            "rbxasset://" . $xmlFileName;
+    if (
+        $assetType === "Pants" ||
+        $assetType === "Shirt" ||
+        $assetType === "Hat"
+    ) {
+        $appearanceFiles[] = "rbxasset://" . $xmlFileName;
     }
 
 
@@ -377,8 +375,8 @@ echo "Starting RCC..." . PHP_EOL;
 
 
 $rcc = new RCCServiceSoap("127.0.0.1", 64989);
-
 $job = new Job("AvatarRender_" . $userId);
+
 
 $wearableFiles = [];
 
@@ -393,16 +391,11 @@ foreach ($avatar["assets"] ?? [] as $asset) {
     }
 
 
-    // if (
-    //     $assetType === "Pants" ||
-    //     $assetType === "Shirt" ||
-    //     $assetType === "Hat"
-    // ) {
-    //     $wearableFiles[] =
-    //         "rbxasset://" . $assetId . "_" . $versionId . ".rbxmx";
-    // }
-
-    if ($assetType === "Pants") {
+    if (
+        $assetType === "Pants" ||
+        $assetType === "Shirt" ||
+        $assetType === "Hat"
+    ) {
         $wearableFiles[] =
             "rbxasset://" . $assetId . "_" . $versionId . ".rbxmx";
     }
@@ -413,7 +406,8 @@ $wearableFilesLua = json_encode($wearableFiles);
 
 
 $scriptText = '
-print("RCC SCRIPT START")
+print("RCC SCRIPT STARTED")
+
 game:GetService("ContentProvider"):SetBaseUrl("http://www.roblox.com")
 game:GetService("ScriptContext").ScriptsDisabled = true
 
@@ -421,50 +415,40 @@ local Players = game:GetService("Players")
 local ThumbnailGenerator = game:GetService("ThumbnailGenerator")
 
 local player = Players:CreateLocalPlayer(1)
-
-print("Player created")
-
 player:LoadCharacter()
-
-print("Character loaded")
-
 local character = player.Character
 
+print("Character:", character)
+
+print("BEFORE GETOBJECTS")
+
 local appearanceFiles = {
-	"rbxasset://301811432_10151325111.rbxmx",
-	"rbxasset://607785314_955993454.rbxmx",
-	"rbxasset://607702162_1171146069.rbxmx"
+    "rbxasset://301811432_10151325111.rbxmx", --pants
+    "rbxasset://607785314_955993454.rbxmx", --shirt
+	"rbxasset://607702162_1171146069.rbxmx" -- left arm or hat?
 }
 
-print("Appearance files:", #appearanceFiles)
-
 for _, assetFile in pairs(appearanceFiles) do
-	print("Loading asset:", assetFile)
+    print("Loading:", assetFile)
 
-	local objects = game:GetObjects(assetFile)
+    local objects = game:GetObjects(assetFile)
 
-	print("Objects loaded:", #objects)
+    print("Object count:", #objects)
 
-	for _, object in pairs(objects) do
-		print("Loaded object:", object.ClassName, object.Name)
-		print("Parent before:", object.Parent)
+    for _, object in pairs(objects) do
+        print("Object:", object.ClassName, object.Name)
 
-		object.Parent = character
-
-		print("Parent after:", object.Parent)
-	end
+        object.Parent = character
+    end
 end
 
-print("Assets loaded")
+print("AFTER GETOBJECTS")
 
-local image = ThumbnailGenerator:Click(
-	"PNG",
-	500,
-	500,
-	true
-)
+print("BEFORE THUMBNAIL")
 
-print("Thumbnail generated")
+local image = ThumbnailGenerator:Click("PNG",500,500,true)
+
+print("AFTER THUMBNAIL")
 
 return image
 ';
@@ -478,7 +462,6 @@ $script = new ScriptExecution(
 
 $result = $rcc->BatchJob($job, $script);
 
-
 if (is_soap_fault($result)) {
     echo "SOAP ERROR" . PHP_EOL;
 
@@ -486,7 +469,6 @@ if (is_soap_fault($result)) {
 
     exit;
 }
-
 
 if (!$result) {
     echo "RCC returned an empty result." . PHP_EOL;
@@ -496,7 +478,6 @@ if (!$result) {
 
 
 $imageData = base64_decode($result);
-
 if ($imageData === false) {
     die("Failed to decode image." . PHP_EOL);
 }
@@ -506,7 +487,7 @@ file_put_contents($outputPath, $imageData);
 
 
 echo PHP_EOL;
-echo "Render complete!" . PHP_EOL;
+echo "Render complete!!" . PHP_EOL;
 echo "Saved: " . $outputPath . PHP_EOL;
 
 
