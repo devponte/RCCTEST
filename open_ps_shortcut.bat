@@ -1,2 +1,2 @@
 @echo off
-start powershell -NoExit -Command "cd '%~dp0RCCService'"
+start powershell -NoExit -Command "cd '%~dp0'"

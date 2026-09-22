@@ -40,7 +40,6 @@ if (!is_dir($rccContentDirectory)) {
 
 echo "Fetching avatar..." . PHP_EOL;
 
-
 $avatarUrl = "https://avatar.roblox.com/v2/avatar/users/" . $userId . "/avatar";
 
 $curl = curl_init($avatarUrl);
@@ -63,13 +62,11 @@ if ($statusCode !== 200) {
     die("HTTP error: " . $statusCode . PHP_EOL . $response);
 }
 
-
 $avatar = json_decode($response, true);
 
 if (!is_array($avatar)) {
     die("Failed to decode avatar JSON." . PHP_EOL);
 }
-
 
 file_put_contents(
     $avatarPath,
@@ -88,12 +85,10 @@ foreach (glob($assetDirectory . "/*") as $file) {
 
 $appearanceFiles = [];
 $rccAssetFiles = [];
-
 $resolvedAssets = [];
 
 
 function downloadAsset($assetId, $versionId = null) {
-
     global $resolvedAssets;
 
     $cacheKey = $assetId . ":" . ($versionId ?? "");
@@ -101,7 +96,6 @@ function downloadAsset($assetId, $versionId = null) {
     if (isset($resolvedAssets[$cacheKey])) {
         return $resolvedAssets[$cacheKey];
     }
-
 
     $urls = [];
 
@@ -119,7 +113,6 @@ function downloadAsset($assetId, $versionId = null) {
 
 
     foreach ($urls as $assetUrl) {
-
         $curl = curl_init($assetUrl);
 
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -137,7 +130,6 @@ function downloadAsset($assetId, $versionId = null) {
 
         curl_close($curl);
 
-
         if ($status !== 200) {
             continue;
         }
@@ -149,9 +141,7 @@ function downloadAsset($assetId, $versionId = null) {
             is_array($json) &&
             isset($json["location"])
         ) {
-
             $location = $json["location"];
-
 
             $curl = curl_init($location);
 
@@ -169,7 +159,6 @@ function downloadAsset($assetId, $versionId = null) {
             $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
 
             curl_close($curl);
-
 
             if ($status !== 200) {
                 continue;
@@ -196,7 +185,6 @@ function downloadAsset($assetId, $versionId = null) {
 
 
 function resolveAssetDependencies(&$data, $sourceName) {
-
     global $assetDirectory;
     global $rccContentDirectory;
     global $rccAssetFiles;
@@ -216,7 +204,6 @@ function resolveAssetDependencies(&$data, $sourceName) {
         $matches
     );
 
-
     if (empty($matches[1])) {
         return $data;
     }
@@ -226,12 +213,9 @@ function resolveAssetDependencies(&$data, $sourceName) {
 
 
     foreach ($assetIds as $assetId) {
-
         echo "  Resolving dependency: " . $assetId . PHP_EOL;
 
-
         $dependencyData = downloadAsset($assetId);
-
 
         if ($dependencyData === false) {
             echo "  Failed to download dependency: " . $assetId . PHP_EOL;
@@ -243,7 +227,6 @@ function resolveAssetDependencies(&$data, $sourceName) {
 
         $dependencyPath =
             $assetDirectory . "/" . $dependencyFileName;
-
 
         $rccDependencyPath =
             $rccContentDirectory . "/" . $dependencyFileName;
@@ -277,7 +260,6 @@ function resolveAssetDependencies(&$data, $sourceName) {
             $data
         );
 
-
         $data = str_replace(
             'rbxassetid://' . $assetId,
             'rbxasset://' . $dependencyFileName,
@@ -295,7 +277,6 @@ echo "Downloading supported assets..." . PHP_EOL;
 
 
 foreach ($avatar["assets"] ?? [] as $asset) {
-
     $assetId = $asset["id"] ?? null;
     $versionId = $asset["currentVersionId"] ?? null;
     $name = $asset["name"] ?? "Unknown";
@@ -323,9 +304,7 @@ foreach ($avatar["assets"] ?? [] as $asset) {
 
     echo "Downloading: " . $name . " (" . $assetType . ")" . PHP_EOL;
 
-
     $assetData = downloadAsset($assetId, $versionId);
-
 
     if ($assetData === false) {
         echo "  Failed to download asset." . PHP_EOL;
@@ -341,7 +320,6 @@ foreach ($avatar["assets"] ?? [] as $asset) {
 
 
     $xmlFileName = $assetId . "_" . $versionId . ".rbxmx";
-
     $xmlPath = $assetDirectory . "/" . $xmlFileName;
 
     file_put_contents(
@@ -370,6 +348,7 @@ foreach ($avatar["assets"] ?? [] as $asset) {
     // ) {
     //     $appearanceFiles[] = "rbxasset://" . $xmlFileName;
     // }
+
     if ($assetType === "Pants") {
         $appearanceFiles[] =
             "rbxasset://" . $xmlFileName;
@@ -388,12 +367,10 @@ if (count($appearanceFiles) === 0) {
 echo PHP_EOL;
 echo "Assets prepared: " . count($appearanceFiles) . PHP_EOL;
 
-
 $characterAppearance = implode(";", $appearanceFiles);
 
 echo "CharacterAppearance:" . PHP_EOL;
 echo $characterAppearance . PHP_EOL;
-
 
 echo PHP_EOL;
 echo "Starting RCC..." . PHP_EOL;
@@ -403,11 +380,10 @@ $rcc = new RCCServiceSoap("127.0.0.1", 64989);
 
 $job = new Job("AvatarRender_" . $userId);
 
-
 $wearableFiles = [];
 
-foreach ($avatar["assets"] ?? [] as $asset) {
 
+foreach ($avatar["assets"] ?? [] as $asset) {
     $assetId = $asset["id"] ?? null;
     $versionId = $asset["currentVersionId"] ?? null;
     $assetType = $asset["assetType"]["name"] ?? "Unknown";
@@ -415,6 +391,7 @@ foreach ($avatar["assets"] ?? [] as $asset) {
     if (!$assetId || !$versionId) {
         continue;
     }
+
 
     // if (
     //     $assetType === "Pants" ||
@@ -424,6 +401,7 @@ foreach ($avatar["assets"] ?? [] as $asset) {
     //     $wearableFiles[] =
     //         "rbxasset://" . $assetId . "_" . $versionId . ".rbxmx";
     // }
+
     if ($assetType === "Pants") {
         $wearableFiles[] =
             "rbxasset://" . $assetId . "_" . $versionId . ".rbxmx";
@@ -433,14 +411,14 @@ foreach ($avatar["assets"] ?? [] as $asset) {
 
 $wearableFilesLua = json_encode($wearableFiles);
 
+
 $scriptText = '
 print("RCC SCRIPT START")
-
 game:GetService("ContentProvider"):SetBaseUrl("http://www.roblox.com")
-
 game:GetService("ScriptContext").ScriptsDisabled = true
 
 local Players = game:GetService("Players")
+local ThumbnailGenerator = game:GetService("ThumbnailGenerator")
 
 local player = Players:CreateLocalPlayer(1)
 
@@ -450,33 +428,40 @@ player:LoadCharacter()
 
 print("Character loaded")
 
-local appearanceFiles = ' . $wearableFilesLua . '
+local character = player.Character
+
+local appearanceFiles = {
+	"rbxasset://301811432_10151325111.rbxmx",
+	"rbxasset://607785314_955993454.rbxmx",
+	"rbxasset://607702162_1171146069.rbxmx"
+}
 
 print("Appearance files:", #appearanceFiles)
 
 for _, assetFile in pairs(appearanceFiles) do
+	print("Loading asset:", assetFile)
 
-    print("Loading asset:", assetFile)
+	local objects = game:GetObjects(assetFile)
 
-    local objects = game:GetObjects(assetFile)
+	print("Objects loaded:", #objects)
 
-    print("Objects loaded:", #objects)
+	for _, object in pairs(objects) do
+		print("Loaded object:", object.ClassName, object.Name)
+		print("Parent before:", object.Parent)
 
-    for _, object in pairs(objects) do
+		object.Parent = character
 
-        print("Loaded object:", object.ClassName, object.Name)
-
-        object.Parent = player.Character
-    end
+		print("Parent after:", object.Parent)
+	end
 end
 
 print("Assets loaded")
 
-local image = game:GetService("ThumbnailGenerator"):Click(
-    "PNG",
-    500,
-    500,
-    true
+local image = ThumbnailGenerator:Click(
+	"PNG",
+	500,
+	500,
+	true
 )
 
 print("Thumbnail generated")
@@ -496,13 +481,16 @@ $result = $rcc->BatchJob($job, $script);
 
 if (is_soap_fault($result)) {
     echo "SOAP ERROR" . PHP_EOL;
+
     var_dump($result);
+
     exit;
 }
 
 
 if (!$result) {
     echo "RCC returned an empty result." . PHP_EOL;
+
     exit;
 }
 
@@ -526,4 +514,4 @@ foreach ($rccAssetFiles as $file) {
     if (is_file($file)) {
         unlink($file);
     }
-} 
+}
