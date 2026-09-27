@@ -1,6 +1,5 @@
 <?php
 
-// fix so rcc doesnt return empty by fixing the lua.
 
 require_once __DIR__ . "/PHP-RCCServiceSoap/Assemblies/Roblox/Grid/Rcc/Job.php";
 require_once __DIR__ . "/PHP-RCCServiceSoap/Assemblies/Roblox/Grid/Rcc/LuaType.php";
@@ -8,6 +7,7 @@ require_once __DIR__ . "/PHP-RCCServiceSoap/Assemblies/Roblox/Grid/Rcc/LuaValue.
 require_once __DIR__ . "/PHP-RCCServiceSoap/Assemblies/Roblox/Grid/Rcc/ScriptExecution.php";
 require_once __DIR__ . "/PHP-RCCServiceSoap/Assemblies/Roblox/Grid/Rcc/Status.php";
 require_once __DIR__ . "/PHP-RCCServiceSoap/Assemblies/Roblox/Grid/Rcc/RCCServiceSoap.php";
+
 
 use Roblox\Grid\Rcc\RCCServiceSoap;
 use Roblox\Grid\Rcc\Job;
@@ -42,8 +42,8 @@ if (!is_dir($rccContentDirectory)) {
 
 echo "Fetching avatar..." . PHP_EOL;
 
-$avatarUrl = "https://avatar.roblox.com/v2/avatar/users/" . $userId . "/avatar";
 
+$avatarUrl = "https://avatar.roblox.com/v2/avatar/users/" . $userId . "/avatar";
 $curl = curl_init($avatarUrl);
 
 curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -65,6 +65,12 @@ if ($statusCode !== 200) {
 }
 
 $avatar = json_decode($response, true);
+$playerAvatarType = $avatar["playerAvatarType"] ?? "R6";
+$isR15 = $playerAvatarType === "R15";
+
+
+echo "Avatar type: " . $playerAvatarType . PHP_EOL;
+
 
 if (!is_array($avatar)) {
     die("Failed to decode avatar JSON." . PHP_EOL);
@@ -74,6 +80,7 @@ file_put_contents(
     $avatarPath,
     json_encode($avatar, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
 );
+
 
 echo "Saved avatar: " . $avatarPath . PHP_EOL;
 
@@ -294,11 +301,11 @@ foreach ($avatar["assets"] ?? [] as $asset) {
         $assetType !== "Shirt" &&
         $assetType !== "Pants" &&
         $assetType !== "Hat" &&
-        $assetType !== "LeftArm" &&
-        $assetType !== "LeftLeg" &&
-        $assetType !== "RightArm" &&
-        $assetType !== "RightLeg" &&
-        $assetType !== "Torso"
+        $assetType !== "LeftArm" //&&
+        // $assetType !== "LeftLeg" &&
+        // $assetType !== "RightArm" &&
+        // $assetType !== "RightLeg" &&
+        // $assetType !== "Torso"
     ) {
         echo "Skipping: " . $name . " (" . $assetType . ")" . PHP_EOL;
         continue;
@@ -406,7 +413,7 @@ $wearableFilesLua = json_encode($wearableFiles);
 
 
 $scriptText = '
-print("RCC SCRIPT STARTED")
+print("-- RCC SCRIPT --")
 
 game:GetService("ContentProvider"):SetBaseUrl("http://www.roblox.com")
 game:GetService("ScriptContext").ScriptsDisabled = true
@@ -414,18 +421,35 @@ game:GetService("ScriptContext").ScriptsDisabled = true
 local Players = game:GetService("Players")
 local ThumbnailGenerator = game:GetService("ThumbnailGenerator")
 
+
 local player = Players:CreateLocalPlayer(1)
+print(player.Name)
+print("BEFORE LOAD CHARACTER")
+
 player:LoadCharacter()
+
 local character = player.Character
 
-print("Character:", character)
+print("Character:", character, character.Name)
+
+local success, result = pcall(function()
+    return Instance.new("HumanoidDescription")
+end)
+
+print("HumanoidDescription:", success, result)
+print("CHARACTER PARTS")
+
+for _, object in pairs(character:GetChildren()) do
+    print("Part:", object.ClassName, object.Name)
+end
+
 
 print("BEFORE GETOBJECTS")
 
 local appearanceFiles = {
     "rbxasset://301811432_10151325111.rbxmx", --pants
     "rbxasset://607785314_955993454.rbxmx", --shirt
-	"rbxasset://607702162_1171146069.rbxmx" -- left arm or hat?
+    "rbxasset://607702162_1171146069.rbxmx" --hat
 }
 
 for _, assetFile in pairs(appearanceFiles) do
@@ -444,11 +468,13 @@ end
 
 print("AFTER GETOBJECTS")
 
+
 print("BEFORE THUMBNAIL")
 
 local image = ThumbnailGenerator:Click("PNG",500,500,true)
 
 print("AFTER THUMBNAIL")
+
 
 return image
 ';
